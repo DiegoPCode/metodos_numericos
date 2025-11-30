@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Desafío — Métodos Numéricos (Bisección / Newton / Secante)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#7c3aed; --muted:#9aa4b2; --glass: rgba(255,255,255,0.04);
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;background:linear-gradient(180deg,#071024 0%, #071331 60%);color:#e6eef8;min-height:100vh;}
+    header{padding:28px 32px;display:flex;align-items:center;gap:20px}
+    .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 8px 30px rgba(124,58,237,0.18);}
+    .title{line-height:1}
+    .title h1{margin:0;font-size:20px;font-weight:700}
+    .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
+
+    .container{display:grid;grid-template-columns:420px 1fr;gap:22px;padding:20px 32px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:18px;box-shadow:0 6px 26px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+
+    /* left column */
+    .controls h2{margin:0 0 10px}
+    .field{margin-bottom:12px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type=text], input[type=number], select, textarea{width:100%;padding:10px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit;font-size:14px}
+    textarea{min-height:90px;resize:vertical}
+    .row{display:flex;gap:10px}
+    .btn{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(90deg,var(--accent),#06b6d4);color:white;font-weight:600}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+
+    /* right column */
+    .top-stats{display:flex;gap:12px;margin-bottom:12px}
+    .stat{flex:1;padding:12px;border-radius:10px;background:var(--glass);text-align:center}
+    .plot{height:360px}
+
+    .tabs{display:flex;gap:8px;margin-bottom:12px}
+    .tab{padding:8px 12px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+    .tab.active{background:linear-gradient(90deg,var(--accent),#06b6d4)}
+
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03);text-align:left}
+    th{color:var(--muted);font-weight:600}
+
+    footer{padding:20px 32px;color:var(--muted);font-size:13px}
+
+    .badge{font-size:12px;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03);display:inline-block}
+
+    .small{font-size:13px;color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:980px){.container{grid-template-columns:1fr;padding:12px}.plot{height:300px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">MN</div>
+    <div class="title">
+      <h1>Desafío — Métodos Numéricos</h1>
+      <p>Interfaz interactiva: Bisección · Newton · Secante — con gráficas y tablas</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card controls">
+      <h2>Parámetros</h2>
+
+      <div class="field">
+        <label>Función f(x) — escribe con sintaxis JS/math.js</label>
+        <input id="fn_expr" type="text" value="x^3 - 4*x + 1" />
+        <div class="small">Ejemplos: <span class="badge">x^3 - 4*x + 1</span> <span class="badge">sin(x) - x/2</span></div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1" class="field">
+          <label>Intervalo a</label>
+          <input id="a_val" type="number" step="any" value="0" />
+        </div>
+        <div style="flex:1" class="field">
+          <label>Intervalo b</label>
+          <input id="b_val" type="number" step="any" value="1" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1" class="field">
+          <label>Inicial x0 (Newton / Secante)</label>
+          <input id="x0_val" type="number" step="any" value="0.5" />
+        </div>
+        <div style="flex:1" class="field">
+          <label>Inicial x1 (Secante)</label>
+          <input id="x1_val" type="number" step="any" value="1" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1" class="field">
+          <label>Tolerancia (error)</label>
+          <input id="tol_val" type="number" step="any" value="1e-8" />
+        </div>
+        <div style="flex:1" class="field">
+          <label>Máx Iter</label>
+          <input id="max_iter" type="number" value="50" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button id="runBtn" class="btn">Ejecutar</button>
+        <button id="clearBtn" class="btn ghost">Limpiar</button>
+      </div>
+
+      <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)" />
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="small"><strong>Resultado</strong><div id="rootResult">—</div></div>
+        <div class="small"><strong>Estado</strong><div id="status">Listo</div></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button id="downloadCSV" class="btn ghost">Exportar CSV</button>
+        <button id="copyRoot" class="btn ghost">Copiar raíz</button>
+      </div>
+
+    </section>
+
+    <section>
+      <div class="card" style="margin-bottom:12px">
+        <div class="top-stats">
+          <div class="stat"><div class="small">Método</div><div id="stat_method" style="font-weight:700">—</div></div>
+          <div class="stat"><div class="small">Iteraciones</div><div id="stat_iters" style="font-weight:700">—</div></div>
+          <div class="stat"><div class="small">Tiempo (ms)</div><div id="stat_time" style="font-weight:700">—</div></div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="tabs">
+            <div class="tab active" data-tab="plot">Gráfico</div>
+            <div class="tab" data-tab="table">Tabla de iteraciones</div>
+          </div>
+
+          <div class="small">Función: <span id="fn_preview" style="font-weight:700">f(x)=x^3-4x+1</span></div>
+        </div>
+
+        <div id="plotArea" class="plot"></div>
+
+      </div>
+
+      <div class="card" id="tableCard" style="display:none;">
+        <h3 style="margin-top:0">Tabla de iteraciones</h3>
+        <div style="overflow:auto;max-height:360px">
+          <table id="iterTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>Hecho con ❤️ · Interfaz interactiva para tu entrega</div>
+      <div class="small">Sugerencia: copia el código en tu repo y publica en GitHub Pages</div>
+    </div>
+  </footer>
+
+  <!-- Dependencies: mathjs + plotly -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
+
+  <script>
+    // --- Utilidades ---
+    const $ = id => document.getElementById(id);
+
+    const defaultExpr = () => $('fn_expr').value;
+
+    function buildEvaluator(expr){
+      // math.js expression parser
+      const node = math.parse(expr);
+      const f = (x)=> node.evaluate({x:x});
+      return {node, f};
+    }
+
+    function buildDerivative(expr){
+      try{
+        const d = math.derivative(expr, 'x');
+        return d;
+      }catch(e){
+        return null;
+      }
+    }
+
+    function formatNumber(v){
+      if(!isFinite(v)) return String(v);
+      return Number(v).toPrecision(12).replace(/(?:\.0+|(?:(\.\d+?)0+))$/,'$1');
+    }
+
+    // --- Methods implementations ---
+    function runBisection(f, a0, b0, tol, maxIter){
+      const rows=[];
+      let a=a0, b=b0;
+      let fa=f(a), fb=f(b);
+      if(fa === 0) return {root:a, rows:[[0,a,b,a,(fa), (fb), a,0]], iters:0};
+      if(fb === 0) return {root:b, rows:[[0,a,b,b,(fa),(fb),b,0]], iters:0};
+      if(Math.sign(fa) === Math.sign(fb)) throw new Error('f(a) y f(b) deben tener signos opuestos');
+      let c, fc;
+      for(let k=1;k<=maxIter;k++){
+        c=(a+b)/2; fc=f(c);
+        rows.push([k,a,b,c,fa,fb,fc, Math.abs(c - (rows.length?rows[rows.length-1][3]:0))]);
+        if(Math.abs(fc) < tol || Math.abs(b-a)/2 < tol) return {root:c, rows, iters:k};
+        if(Math.sign(fa) !== Math.sign(fc)) { b=c; fb=fc; } else { a=c; fa=fc; }
+      }
+      return {root:c, rows, iters:maxIter};
+    }
+
+    function runNewton(fnode, f, dnode, x0, tol, maxIter){
+      const rows=[];
+      let x = x0;
+      for(let k=1;k<=maxIter;k++){
+        const fx = f(x);
+        const dfx = dnode ? dnode.evaluate({x:x}) : null;
+        if(dfx === 0) throw new Error('Derivada cero en iteración '+k);
+        const xn = x - fx/dfx;
+        rows.push([k,x,fx,dfx,xn, Math.abs(xn-x)]);
+        if(Math.abs(xn-x) < tol) return {root:xn, rows, iters:k};
+        x = xn;
+      }
+      return {root:x, rows, iters:maxIter};
+    }
+
+    function runSecant(f, x0, x1, tol, maxIter){
+      const rows=[];
+      let xprev = x0, xcurr = x1;
+      let fprev = f(xprev), fcurr = f(xcurr);
+      for(let k=1;k<=maxIter;k++){
+        if(fcurr - fprev === 0) throw new Error('División por cero en secante en iter ' + k);
+        const xnext = xcurr - fcurr * (xcurr - xprev) / (fcurr - fprev);
+        rows.push([k,xprev,xcurr,fprev,fcurr,xnext,Math.abs(xnext-xcurr)]);
+        if(Math.abs(xnext - xcurr) < tol) return {root:xnext, rows, iters:k};
+        xprev = xcurr; fprev = fcurr;
+        xcurr = xnext; fcurr = f(xcurr);
+      }
+      return {root:xcurr, rows, iters:maxIter};
+    }
+
+    // --- UI and plotting ---
+    const plotArea = $('plotArea');
+    let lastResult = null;
+
+    function renderPlot(fn, dataPoints, root){
+      // fn: evaluator f(x)
+      const xs = [];
+      const ys = [];
+      const step= (parseFloat($('b_val').value) - parseFloat($('a_val').value))/200 || 0.05;
+      const start = parseFloat($('a_val').value) - 1;
+      const end = parseFloat($('b_val').value) + 1;
+      for(let x=start; x<=end; x+=step){ xs.push(x); ys.push(fn(x)); }
+
+      const traces = [{x:xs,y:ys,type:'scatter',mode:'lines',name:'f(x)',line:{width:3}}];
+
+      // add converging points
+      if(dataPoints && dataPoints.length){
+        const mp = dataPoints.map(d=>d[0]);
+        const my = dataPoints.map(d=>d[1]);
+        traces.push({x:mp,y:my,mode:'markers+lines',name:'Iteraciones',marker:{size:8}});
+      }
+
+      if(root !== undefined){ traces.push({x:[root],y:[fn(root)],mode:'markers',name:'Raíz aprox',marker:{size:12,symbol:'x'}}); }
+
+      const layout = {margin:{t:20,b:40,l:60,r:20},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',xaxis:{title:'x'},yaxis:{title:'f(x)'}};
+      Plotly.newPlot(plotArea, traces, layout, {responsive:true});
+    }
+
+    function fillTable(headers, rows){
+      const thead = document.querySelector('#iterTable thead');
+      const tbody = document.querySelector('#iterTable tbody');
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      const tr = document.createElement('tr'); headers.forEach(h=>{ const th=document.createElement('th'); th.textContent=h; tr.appendChild(th); }); thead.appendChild(tr);
+      rows.forEach(r=>{ const tr=document.createElement('tr'); r.forEach(c=>{ const td=document.createElement('td'); td.textContent=(typeof c === 'number')?formatNumber(c):String(c); tr.appendChild(td); }); tbody.appendChild(tr); });
+    }
+
+    function rowsToPoints(rows, idxX, idxY){ return rows.map(r=>[r[idxX], r[idxY]]).filter(p=>isFinite(p[0]) && isFinite(p[1])); }
+
+    // Event handlers
+    $('runBtn').addEventListener('click', ()=>{
+      const expr = $('fn_expr').value.trim();
+      $('fn_preview').textContent = 'f(x)=' + expr;
+      $('status').textContent = 'Calculando...';
+      const a = parseFloat($('a_val').value), b = parseFloat($('b_val').value);
+      const x0 = parseFloat($('x0_val').value), x1 = parseFloat($('x1_val').value);
+      const tol = parseFloat($('tol_val').value);
+      const maxIter = parseInt($('max_iter').value,10);
+
+      let parsed;
+      try{ parsed = buildEvaluator(expr); }catch(e){ $('status').textContent = 'Error al parsear la función'; return; }
+      const deriv = buildDerivative(expr);
+
+      const start = performance.now();
+      try{
+        // Run all three automatically and show a selector to view each? We'll show a small selector: prompt user via simple choice modal
+        // For UX, ask which method. We'll show a simple prompt.
+        const method = prompt('Elige método: escribe b (Bisección), n (Newton), s (Secante). De lo contrario se ejecuta Newton').toLowerCase();
+        let res;
+        if(method === 'b'){
+          res = runBisection(parsed.f, a, b, tol, maxIter);
+          $('stat_method').textContent = 'Bisección';
+          fillTable(['k','a','b','c','f(a)','f(b)','f(c)','Error'], res.rows);
+          const pts = rowsToPoints(res.rows,3,6); // c and f(c)
+          renderPlot(parsed.f, pts, res.root);
+        } else if(method === 's'){
+          res = runSecant(parsed.f, x0, x1, tol, maxIter);
+          $('stat_method').textContent = 'Secante';
+          fillTable(['k','x_{n-1}','x_n','f(x_{n-1})','f(x_n)','x_{n+1}','Error'], res.rows);
+          const pts = rowsToPoints(res.rows,5,4); // x_{n+1}, f(x_n) approximated
+          // compute y for each xnext
+          const pts2 = res.rows.map(r=>[r[5], parsed.f(r[5])]);
+          renderPlot(parsed.f, pts2, res.root);
+        } else {
+          res = runNewton(null, parsed.f, deriv, x0, tol, maxIter);
+          $('stat_method').textContent = 'Newton-Raphson';
+          fillTable(['k','x_n','f(x_n)','f\'(x_n)','x_{n+1}','Error'], res.rows);
+          const pts = rowsToPoints(res.rows,4,2); // x_{n+1} and f(x_{n+1})
+          const pts2 = res.rows.map(r=>[r[4], parsed.f(r[4])]);
+          renderPlot(parsed.f, pts2, res.root);
+        }
+
+        const end = performance.now();
+        $('stat_iters').textContent = res.iters;
+        $('stat_time').textContent = Math.round(end-start);
+        $('rootResult').textContent = formatNumber(res.root);
+        $('status').textContent = 'Hecho';
+        lastResult = {method:$('stat_method').textContent, res, expr};
+        // show table tab
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.querySelector('[data-tab="table"]').classList.add('active');
+        document.getElementById('tableCard').style.display='block';
+
+      }catch(e){
+        $('status').textContent = 'Error: ' + e.message;
+        console.error(e);
+      }
+    });
+
+    $('clearBtn').addEventListener('click', ()=>{ document.querySelector('#iterTable thead').innerHTML=''; document.querySelector('#iterTable tbody').innerHTML=''; Plotly.purge(plotArea); $('status').textContent='Listo'; $('rootResult').textContent='—'; lastResult = null; document.getElementById('tableCard').style.display='none'; });
+
+    // tabs
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', (ev)=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); ev.target.classList.add('active'); if(ev.target.dataset.tab==='plot'){ document.getElementById('tableCard').style.display='none'; plotArea.style.display='block' } else { document.getElementById('tableCard').style.display='block'; plotArea.style.display='block' } }));
+
+    // download CSV
+    function toCSV(rows, headers){ const all=[headers, ...rows]; return all.map(r=>r.map(c=>typeof c==='number'?c:String(c)).join(',')).join('\n'); }
+    $('downloadCSV').addEventListener('click', ()=>{
+      if(!lastResult){ alert('Ejecuta un método primero'); return; }
+      const res = lastResult.res;
+      let headers, rows;
+      if(lastResult.method.includes('Bisecci')){ headers=['k','a','b','c','f(a)','f(b)','f(c)','Error']; rows = res.rows; }
+      else if(lastResult.method.includes('Secante')){ headers=['k','x_{n-1}','x_n','f(x_{n-1})','f(x_n)','x_{n+1}','Error']; rows = res.rows; }
+      else { headers=['k','x_n','f(x_n)','f\'(x_n)','x_{n+1}','Error']; rows = res.rows; }
+      const csv = toCSV(rows, headers);
+      const blob = new Blob([csv],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download = 'corrida_'+lastResult.method.replace(/\s+/g,'_')+'.csv'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    $('copyRoot').addEventListener('click', ()=>{ if(!lastResult){ alert('Ejecuta un método primero'); return; } navigator.clipboard.writeText(String(lastResult.res.root)).then(()=>alert('Raíz copiada')) });
+
+    // initial plot
+    window.addEventListener('load', ()=>{
+      try{ const parsed = buildEvaluator(defaultExpr()); renderPlot(parsed.f, [], undefined); }catch(e){}
+    });
+
+  </script>
+</body>
+</html>
